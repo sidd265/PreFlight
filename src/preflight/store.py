@@ -77,7 +77,77 @@ class Store:
             )
             """
         )
+        # Testing tables (Phase 2): frozen golden snapshots and deterministic
+        # replay results. Working data, not the audit chain.
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS goldens (
+                name          TEXT PRIMARY KEY,
+                snapshot_json TEXT NOT NULL,
+                created_at    TEXT NOT NULL
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS replay_runs (
+                replay_id      TEXT PRIMARY KEY,
+                golden_name    TEXT NOT NULL,
+                policy_json    TEXT NOT NULL,
+                decisions_json TEXT NOT NULL,
+                created_at     TEXT NOT NULL
+            )
+            """
+        )
         self._conn.commit()
+
+    # --- Testing: golden set & replay (Phase 2) -----------------------------
+
+    def save_golden(self, name: str, snapshot_json: str, created_at: str) -> None:
+        """Insert or replace a golden snapshot by name."""
+        self._conn.execute(
+            "INSERT INTO goldens (name, snapshot_json, created_at) VALUES (?, ?, ?) "
+            "ON CONFLICT(name) DO UPDATE SET snapshot_json=excluded.snapshot_json, "
+            "created_at=excluded.created_at",
+            (name, snapshot_json, created_at),
+        )
+        self._conn.commit()
+
+    def get_golden(self, name: str) -> sqlite3.Row | None:
+        cur = self._conn.execute(
+            "SELECT name, snapshot_json, created_at FROM goldens WHERE name = ?", (name,)
+        )
+        return cur.fetchone()
+
+    def all_goldens(self) -> list[sqlite3.Row]:
+        cur = self._conn.execute(
+            "SELECT name, snapshot_json, created_at FROM goldens ORDER BY created_at ASC"
+        )
+        return cur.fetchall()
+
+    def save_replay(
+        self,
+        replay_id: str,
+        golden_name: str,
+        policy_json: str,
+        decisions_json: str,
+        created_at: str,
+    ) -> None:
+        self._conn.execute(
+            "INSERT INTO replay_runs "
+            "(replay_id, golden_name, policy_json, decisions_json, created_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (replay_id, golden_name, policy_json, decisions_json, created_at),
+        )
+        self._conn.commit()
+
+    def get_replay(self, replay_id: str) -> sqlite3.Row | None:
+        cur = self._conn.execute(
+            "SELECT replay_id, golden_name, policy_json, decisions_json, created_at "
+            "FROM replay_runs WHERE replay_id = ?",
+            (replay_id,),
+        )
+        return cur.fetchone()
 
     # --- Recording (Phase 1) ------------------------------------------------
 

@@ -4,6 +4,17 @@ All notable changes to Preflight are documented here.
 
 ## [Unreleased]
 
+### Phase 2 — Testing (golden set, replay, diff)
+- Deterministic decision function (`decision.py`): pure function of frozen action +
+  declarative policy — same input always yields the same verdict.
+- Golden set (`golden.py`): freeze a known-good run; `preflight save <name>`.
+- Deterministic replay (`replay.py`): re-derive decisions from a frozen golden;
+  `preflight replay <name>`. Same golden + policy → byte-identical decisions.
+- Side-by-side diff (`diff.py`) + regression detection (`regression.py`):
+  `preflight diff <runA> <runB>` flags dangerous verdict relaxations on high-risk
+  actions (block→allow, needs_approval→allow) and exits non-zero on regressions.
+- Store extended with `goldens` / `replay_runs` tables.
+
 ### Phase 1 — Recording + Waste Report
 - Recording SDK (`Recorder`): context manager + decorator that capture actions
   **through the redaction pass** before persisting — raw secrets never stored.

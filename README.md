@@ -11,7 +11,8 @@ LLM judge with your own key).
 ## Status
 
 Early development. Building the free CLI in phases (0–5). Done: **Phase 0 — Scaffold &
-Schema**, **Phase 1 — Recording + Waste Report**.
+Schema**, **Phase 1 — Recording + Waste Report**, **Phase 2 — Testing (golden set,
+replay, diff)**.
 
 ### Try it
 
