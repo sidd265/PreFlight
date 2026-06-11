@@ -12,7 +12,17 @@ LLM judge with your own key).
 
 Early development. Building the free CLI in phases (0–5). Done: **Phase 0 — Scaffold &
 Schema**, **Phase 1 — Recording + Waste Report**, **Phase 2 — Testing (golden set,
-replay, diff)**.
+replay, diff)**, **Phase 3 — Checking (judge, approval, dry-run)**.
+
+### Live judge demo (optional, BYO key)
+
+```bash
+uv sync --extra judge
+$env:ANTHROPIC_API_KEY = "sk-ant-..."   # your own key; never shipped
+uv run preflight demo --live --html judge_demo.html
+```
+
+Without `--live` the command refuses to make any network call, so CI never touches it.
 
 ### Try it
 

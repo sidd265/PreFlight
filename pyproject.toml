@@ -21,6 +21,12 @@ dev = [
     "pytest==8.3.4",
     "ruff==0.8.4",
 ]
+# Optional: only needed for the opt-in live judge (`preflight demo --live`).
+# Deliberately NOT a core dependency and NOT installed in CI — keeps the default
+# install network-free (S2) and tests free/deterministic.
+judge = [
+    "anthropic>=0.40,<1.0",
+]
 
 [build-system]
 requires = ["hatchling"]

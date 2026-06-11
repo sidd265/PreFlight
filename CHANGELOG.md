@@ -4,6 +4,19 @@ All notable changes to Preflight are documented here.
 
 ## [Unreleased]
 
+### Phase 3 — Checking (judge, approval, dry-run)
+- LLM judge (`judge.py`): provider-agnostic `JudgeClient`, BYO key, small-model
+  default. Context scrubbed before sending; recorded content wrapped as untrusted
+  data; system prompt hardened against prompt injection (S5). Fails CLOSED — any
+  client error or unparseable output yields `block`, never auto-allow (S3).
+- Human approval gate (`approval.py`): pauses for `needs_approval` actions and
+  default-denies anything but an explicit yes.
+- Dry-run (`dryrun.py`): structurally incapable of a real side effect (S6) — the
+  dry-run branch never references the executor.
+- `preflight demo` (opt-in `--live`): runs the real Anthropic judge against a risky
+  and an injection scenario, prints verdicts, writes an HTML report. Never called by
+  CI; requires `ANTHROPIC_API_KEY` and the optional `judge` extra.
+
 ### Phase 2 — Testing (golden set, replay, diff)
 - Deterministic decision function (`decision.py`): pure function of frozen action +
   declarative policy — same input always yields the same verdict.

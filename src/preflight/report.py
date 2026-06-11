@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from rich.console import Console
 from rich.table import Table
 
+from preflight.judge import JudgeVerdict
 from preflight.schema import Waste
 from preflight.waste import classify, compute_waste
 
@@ -89,6 +90,42 @@ def render_html(report: RunReport, rows: list[sqlite3.Row]) -> str:
 <table>
   <tr><th>#</th><th>Kind</th><th>Label</th><th>Reason</th><th>Cost</th></tr>
   {detail_html}
+</table>
+</body></html>
+"""
+
+
+def render_judge_html(scenarios: list[tuple[str, JudgeVerdict]]) -> str:
+    """Self-contained HTML for a set of (scenario_name, JudgeVerdict) results."""
+    rows = []
+    for name, v in scenarios:
+        color = {"allow": "#1a7f37", "block": "#cf222e", "needs_approval": "#9a6700"}.get(
+            v.verdict, "#1f2328"
+        )
+        score = "—" if v.score is None else f"{v.score:.2f}"
+        rows.append(
+            f"<tr><td>{html.escape(name)}</td>"
+            f'<td style="color:{color};font-weight:600">{html.escape(v.verdict)}</td>'
+            f"<td style='text-align:right'>{score}</td>"
+            f"<td>{html.escape(v.rationale)}</td>"
+            f"<td>{'yes' if v.available else 'no (failed closed)'}</td></tr>"
+        )
+    body = "\n".join(rows)
+    return f"""<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Preflight Judge Demo</title>
+<style>
+  body {{ font-family: system-ui, sans-serif; margin: 2rem; color: #1f2328; }}
+  table {{ border-collapse: collapse; margin-top: 1rem; }}
+  th, td {{ border: 1px solid #d0d7de; padding: 0.4rem 0.8rem; }}
+  th {{ background: #f6f8fa; text-align: left; }}
+</style></head><body>
+<h1>Preflight Judge — Demo</h1>
+<p style="color:#656d76;font-size:0.85rem">Live LLM-judge verdicts. Recorded content
+was wrapped as untrusted data; injection attempts must not flip the verdict to allow.</p>
+<table>
+  <tr><th>Scenario</th><th>Verdict</th><th>Score</th><th>Rationale</th><th>Judge available</th></tr>
+  {body}
 </table>
 </body></html>
 """
