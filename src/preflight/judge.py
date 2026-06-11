@@ -159,3 +159,43 @@ class AnthropicJudgeClient:
         )
         # Concatenate any text blocks in the response.
         return "".join(block.text for block in resp.content if getattr(block, "type", "") == "text")
+
+
+DEFAULT_GEMINI_MODEL = "gemini-2.0-flash"
+
+
+class GeminiJudgeClient:
+    """Real BYO-key Google Gemini client. Used only by `preflight demo` (opt-in), never CI.
+
+    Requires the optional `google-genai` package (`uv sync --extra judge`) and the
+    user's own API key. No key is shipped or defaulted. The system prompt is passed
+    as Gemini's `system_instruction`, keeping recorded content (the user contents)
+    separate from the hardened instructions.
+    """
+
+    def __init__(self, api_key: str, model: str = DEFAULT_GEMINI_MODEL):
+        if not api_key:
+            raise ValueError("GEMINI_API_KEY required — BYO key only, no default key.")
+        self._api_key = api_key
+        self.model = model
+
+    def complete(self, *, system: str, user: str, model: str, max_tokens: int) -> str:
+        try:
+            from google import genai
+            from google.genai import types
+        except ImportError as exc:  # pragma: no cover - exercised only in live demo
+            raise RuntimeError(
+                "The 'google-genai' package is required for the Gemini judge. "
+                "Install it with: uv sync --extra judge"
+            ) from exc
+
+        client = genai.Client(api_key=self._api_key)
+        resp = client.models.generate_content(
+            model=model,
+            contents=user,
+            config=types.GenerateContentConfig(
+                system_instruction=system,
+                max_output_tokens=max_tokens,
+            ),
+        )
+        return resp.text or ""

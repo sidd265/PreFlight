@@ -26,6 +26,7 @@ dev = [
 # install network-free (S2) and tests free/deterministic.
 judge = [
     "anthropic>=0.40,<1.0",
+    "google-genai>=1.0,<2.0",
 ]
 
 [build-system]

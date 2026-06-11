@@ -13,9 +13,12 @@ All notable changes to Preflight are documented here.
   default-denies anything but an explicit yes.
 - Dry-run (`dryrun.py`): structurally incapable of a real side effect (S6) — the
   dry-run branch never references the executor.
-- `preflight demo` (opt-in `--live`): runs the real Anthropic judge against a risky
-  and an injection scenario, prints verdicts, writes an HTML report. Never called by
-  CI; requires `ANTHROPIC_API_KEY` and the optional `judge` extra.
+- `preflight demo` (opt-in `--live`): runs the real judge against a risky and an
+  injection scenario, prints verdicts, writes an HTML report. Never called by CI;
+  requires the optional `judge` extra and the provider's API key.
+  - `--provider anthropic` (default, `ANTHROPIC_API_KEY`) or `--provider gemini`
+    (`GEMINI_API_KEY`). Both keep recorded content separate from the hardened system
+    instructions.
 
 ### Phase 2 — Testing (golden set, replay, diff)
 - Deterministic decision function (`decision.py`): pure function of frozen action +

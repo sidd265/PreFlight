@@ -179,13 +179,23 @@ def _demo_scenarios() -> list[tuple[str, object]]:
     return [("risky payment", risky), ("prompt-injection attempt", injected)]
 
 
+# Per-provider defaults: (env var, default model).
+_PROVIDERS = {
+    "anthropic": ("ANTHROPIC_API_KEY", "claude-haiku-4-5"),
+    "gemini": ("GEMINI_API_KEY", "gemini-2.0-flash"),
+}
+
+
 @app.command()
 def demo(
     live: bool = typer.Option(
-        False, "--live", help="Actually call the real Anthropic judge (uses your API key)."
+        False, "--live", help="Actually call the real judge (uses your API key)."
+    ),
+    provider: str = typer.Option(
+        "anthropic", "--provider", help="Judge provider: anthropic | gemini."
     ),
     model: str = typer.Option(
-        "claude-haiku-4-5", "--model", help="Judge model id (small/cheap by default)."
+        None, "--model", help="Judge model id (defaults to the provider's small model)."
     ),
     html_out: Path = typer.Option(
         None, "--html", help="Write a self-contained HTML report of the verdicts."
@@ -195,22 +205,32 @@ def demo(
 
     Refuses to make any network call unless --live is passed, so CI never calls it.
     """
-    from preflight.judge import AnthropicJudgeClient, Judge
+    from preflight.judge import AnthropicJudgeClient, GeminiJudgeClient, Judge
     from preflight.report import render_judge_html
+
+    if provider not in _PROVIDERS:
+        typer.echo(f"Unknown provider '{provider}'. Choose: {', '.join(_PROVIDERS)}.")
+        raise typer.Exit(code=1)
+    env_var, default_model = _PROVIDERS[provider]
+    model = model or default_model
 
     if not live:
         typer.echo(
             "Refusing to call the live judge without --live. "
-            "Re-run with: preflight demo --live  (requires ANTHROPIC_API_KEY)."
+            f"Re-run with: preflight demo --live --provider {provider}  (requires {env_var})."
         )
         raise typer.Exit(code=1)
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    api_key = os.environ.get(env_var, "")
     if not api_key:
-        typer.echo("ANTHROPIC_API_KEY is not set. BYO key only — no default key is shipped.")
+        typer.echo(f"{env_var} is not set. BYO key only — no default key is shipped.")
         raise typer.Exit(code=1)
 
-    judge = Judge(AnthropicJudgeClient(api_key=api_key, model=model), model=model)
+    if provider == "gemini":
+        client = GeminiJudgeClient(api_key=api_key, model=model)
+    else:
+        client = AnthropicJudgeClient(api_key=api_key, model=model)
+    judge = Judge(client, model=model)
 
     results = []
     for name, action in _demo_scenarios():

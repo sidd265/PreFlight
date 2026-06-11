@@ -21,3 +21,16 @@ def test_demo_requires_key_when_live(monkeypatch):
     result = runner.invoke(app, ["demo", "--live"])
     assert result.exit_code == 1
     assert "ANTHROPIC_API_KEY is not set" in result.stdout
+
+
+def test_demo_gemini_requires_its_own_key(monkeypatch):
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    result = runner.invoke(app, ["demo", "--live", "--provider", "gemini"])
+    assert result.exit_code == 1
+    assert "GEMINI_API_KEY is not set" in result.stdout
+
+
+def test_demo_rejects_unknown_provider():
+    result = runner.invoke(app, ["demo", "--live", "--provider", "openai-typo"])
+    assert result.exit_code == 1
+    assert "Unknown provider" in result.stdout

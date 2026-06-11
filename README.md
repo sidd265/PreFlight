@@ -18,8 +18,14 @@ replay, diff)**, **Phase 3 — Checking (judge, approval, dry-run)**.
 
 ```bash
 uv sync --extra judge
+
+# Anthropic (default)
 $env:ANTHROPIC_API_KEY = "sk-ant-..."   # your own key; never shipped
 uv run preflight demo --live --html judge_demo.html
+
+# or Gemini
+$env:GEMINI_API_KEY = "..."
+uv run preflight demo --live --provider gemini --html judge_demo.html
 ```
 
 Without `--live` the command refuses to make any network call, so CI never touches it.
