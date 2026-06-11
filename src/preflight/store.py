@@ -53,7 +53,84 @@ class Store:
             )
             """
         )
+        # Recording tables (Phase 1). These hold redacted recorded actions grouped
+        # into runs. Unlike audit_records they are working data, not the audit chain.
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS runs (
+                run_id     TEXT PRIMARY KEY,
+                name       TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            )
+            """
+        )
+        self._conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS recorded_actions (
+                seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+                run_id       TEXT NOT NULL,
+                action_json  TEXT NOT NULL,
+                outcome      TEXT NOT NULL,
+                fingerprint  TEXT NOT NULL,
+                cost_usd     REAL NOT NULL,
+                FOREIGN KEY (run_id) REFERENCES runs(run_id)
+            )
+            """
+        )
         self._conn.commit()
+
+    # --- Recording (Phase 1) ------------------------------------------------
+
+    def create_run(self, run_id: str, name: str, created_at: str) -> None:
+        self._conn.execute(
+            "INSERT INTO runs (run_id, name, created_at) VALUES (?, ?, ?)",
+            (run_id, name, created_at),
+        )
+        self._conn.commit()
+
+    def add_recorded_action(
+        self,
+        run_id: str,
+        action_json: str,
+        outcome: str,
+        fingerprint: str,
+        cost_usd: float,
+    ) -> None:
+        """Persist one recorded action. `action_json` must already be REDACTED."""
+        self._conn.execute(
+            "INSERT INTO recorded_actions "
+            "(run_id, action_json, outcome, fingerprint, cost_usd) VALUES (?, ?, ?, ?, ?)",
+            (run_id, action_json, outcome, fingerprint, cost_usd),
+        )
+        self._conn.commit()
+
+    def actions_for_run(self, run_id: str) -> list[sqlite3.Row]:
+        cur = self._conn.execute(
+            "SELECT seq, run_id, action_json, outcome, fingerprint, cost_usd "
+            "FROM recorded_actions WHERE run_id = ? ORDER BY seq ASC",
+            (run_id,),
+        )
+        return cur.fetchall()
+
+    def latest_run(self) -> sqlite3.Row | None:
+        cur = self._conn.execute(
+            "SELECT run_id, name, created_at FROM runs ORDER BY created_at DESC, rowid DESC LIMIT 1"
+        )
+        return cur.fetchone()
+
+    def get_run(self, run_id: str) -> sqlite3.Row | None:
+        cur = self._conn.execute(
+            "SELECT run_id, name, created_at FROM runs WHERE run_id = ?", (run_id,)
+        )
+        return cur.fetchone()
+
+    def all_runs(self) -> list[sqlite3.Row]:
+        cur = self._conn.execute(
+            "SELECT run_id, name, created_at FROM runs ORDER BY created_at ASC, rowid ASC"
+        )
+        return cur.fetchall()
+
+    # --- Audit chain --------------------------------------------------------
 
     def last_hash(self) -> str:
         """Hash of the most recent record, or the genesis hash if the chain is empty."""

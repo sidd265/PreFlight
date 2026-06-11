@@ -10,7 +10,18 @@ LLM judge with your own key).
 
 ## Status
 
-Early development. Building the free CLI in phases (0–5). Currently: **Phase 0 — Scaffold & Schema**.
+Early development. Building the free CLI in phases (0–5). Done: **Phase 0 — Scaffold &
+Schema**, **Phase 1 — Recording + Waste Report**.
+
+### Try it
+
+```bash
+uv sync --extra dev
+# record the sample agent into a local DB, then report on it:
+uv run python -c "from preflight.store import Store; from examples.sample_agent import run_sample_agent; s=Store('.preflight/preflight.db'); run_sample_agent(s); s.close()"
+uv run preflight report
+uv run preflight report --html report.html
+```
 
 ## Install (development)
 
