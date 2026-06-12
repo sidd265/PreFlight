@@ -12,6 +12,11 @@ secrets/
 *.jsonl
 .preflight/
 
+# Generated reports (waste/judge HTML) — artifacts, not source
+report.html
+judge_demo.html
+*.report.html
+
 # Python
 __pycache__/
 *.py[cod]
