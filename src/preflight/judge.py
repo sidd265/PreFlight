@@ -190,12 +190,26 @@ class GeminiJudgeClient:
             ) from exc
 
         client = genai.Client(api_key=self._api_key)
-        resp = client.models.generate_content(
-            model=model,
-            contents=user,
-            config=types.GenerateContentConfig(
-                system_instruction=system,
-                max_output_tokens=max_tokens,
-            ),
-        )
+        # We want a terse JSON verdict, not chain-of-thought. On "thinking" models
+        # (e.g. gemini-2.5-*) reasoning tokens otherwise consume the output budget and
+        # truncate the JSON. Disable thinking; fall back for models that reject the config.
+        try:
+            resp = client.models.generate_content(
+                model=model,
+                contents=user,
+                config=types.GenerateContentConfig(
+                    system_instruction=system,
+                    max_output_tokens=max_tokens,
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                ),
+            )
+        except Exception:  # noqa: BLE001 - non-thinking models reject thinking_config
+            resp = client.models.generate_content(
+                model=model,
+                contents=user,
+                config=types.GenerateContentConfig(
+                    system_instruction=system,
+                    max_output_tokens=max_tokens,
+                ),
+            )
         return resp.text or ""

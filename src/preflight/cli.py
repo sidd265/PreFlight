@@ -235,7 +235,7 @@ def demo(
     results = []
     for name, action in _demo_scenarios():
         verdict = judge.evaluate(action)  # type: ignore[arg-type]
-        results.append((name, verdict))
+        results.append((name, action.payload, verdict))
         typer.echo(
             f"[{name}] verdict={verdict.verdict} "
             f"score={verdict.score} available={verdict.available}"
@@ -250,7 +250,7 @@ def demo(
             typer.echo("Refusing to write HTML outside the working directory.")
             raise typer.Exit(code=1)
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(render_judge_html(results), encoding="utf-8")
+        out.write_text(render_judge_html(results, provider=provider, model=model), encoding="utf-8")
         typer.echo(f"HTML report written to {out}")
 
 
