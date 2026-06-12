@@ -10,9 +10,10 @@ LLM judge with your own key).
 
 ## Status
 
-Early development. Building the free CLI in phases (0–5). Done: **Phase 0 — Scaffold &
-Schema**, **Phase 1 — Recording + Waste Report**, **Phase 2 — Testing (golden set,
-replay, diff)**, **Phase 3 — Checking (judge, approval, dry-run)**.
+Free CLI complete (phases 0–5): **Phase 0 — Scaffold & Schema**, **Phase 1 — Recording +
+Waste Report**, **Phase 2 — Testing (golden set, replay, diff)**, **Phase 3 — Checking
+(judge, approval, dry-run)**, **Phase 4 — Guarding (spend limits, kill switch,
+policy-as-code)**, **Phase 5 — Proving (audit verify + export)**.
 
 ### Live judge demo (optional, BYO key)
 
@@ -47,15 +48,17 @@ uv sync --extra dev      # create the env and install pinned deps
 uv run preflight --version
 ```
 
-## Commands (target UX)
+## Commands
 
 ```
 preflight report                 # waste & ROI report (real vs wasted, $ spent, $ wasted)
 preflight save <name>            # snapshot a situation into the golden set
 preflight replay <name>          # deterministic re-run from frozen context
 preflight diff <runA> <runB>     # side-by-side, with danger flags
+preflight guard --policy preflight.yaml   # enforce budget + policy; kill switch on breach
 preflight verify                 # check audit-log integrity (tamper detection)
 preflight export --format md|html|json --out <dir>
+preflight demo --live            # opt-in live LLM-judge demo (BYO key)
 ```
 
 ## Security

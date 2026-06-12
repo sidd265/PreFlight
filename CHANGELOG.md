@@ -4,6 +4,16 @@ All notable changes to Preflight are documented here.
 
 ## [Unreleased]
 
+### Phase 5 — Proving (audit verify + export)
+- `verify.py`: recomputes the SHA-256 hash chain and detects **any** tampering —
+  content alteration, insertion, reorder, or deletion (S4). Read-only; reports the
+  first bad record. `preflight verify` exits non-zero on tamper.
+- `export.py`: exports the audit trail to **JSON / Markdown / HTML**, including each
+  record's hashes so the trail can be re-verified. Output is **path-confined** to the
+  working directory (no traversal, S7). `preflight export --out <dir> --format ...`.
+- `preflight guard` now appends each decision to the append-only audit chain, so a
+  guarded run produces a tamper-evident trail to verify and export.
+
 ### Phase 4 — Guarding (spend limits, policy)
 - Spend guard (`guard.py`): per-run **budget** checked BEFORE each action; a breach
   trips a latching **kill switch** so every later action is blocked.

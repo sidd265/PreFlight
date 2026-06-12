@@ -10,14 +10,17 @@ import typer
 from preflight import __version__
 from preflight.decision import DecisionPolicy
 from preflight.diff import diff_decisions
+from preflight.export import write_export
 from preflight.golden import save_golden
 from preflight.guard import Guard, load_policy
 from preflight.paths import default_db_path
+from preflight.redaction import redact
 from preflight.regression import find_regressions
 from preflight.replay import load_replay_decisions, replay
 from preflight.report import build_report, render_html, render_text
 from preflight.schema import Action
 from preflight.store import Store
+from preflight.verify import verify_chain
 
 app = typer.Typer(
     name="preflight",
@@ -167,6 +170,8 @@ def guard(
     """
     policy = load_policy(policy_path)
     store, _ = _open_store(db)
+    g = Guard(policy)
+    blocked = 0
     with store:
         run_row = store.get_run(run) if run else store.latest_run()
         if run_row is None:
@@ -174,14 +179,28 @@ def guard(
             raise typer.Exit(code=1)
         rows = store.actions_for_run(run_row["run_id"])
 
-    g = Guard(policy)
-    blocked = 0
-    for row in rows:
-        action = Action.model_validate_json(row["action_json"])
-        result = g.check(action, cost_usd=float(row["cost_usd"]))
-        if result.verdict == "block":
-            blocked += 1
-        typer.echo(f"  [{row['seq']}] {action.kind} -> {result.verdict}  ({result.reason})")
+        for row in rows:
+            action = Action.model_validate_json(row["action_json"])
+            result = g.check(action, cost_usd=float(row["cost_usd"]))
+            if result.verdict == "block":
+                blocked += 1
+            # Append the decision to the tamper-evident audit chain (S4). Redact as
+            # defense in depth even though the action fields are already scrubbed.
+            store.append(
+                redact(
+                    {
+                        "type": "guard_decision",
+                        "run_id": run_row["run_id"],
+                        "action_id": action.id,
+                        "kind": action.kind,
+                        "risk": action.risk,
+                        "verdict": result.verdict,
+                        "reason": result.reason,
+                        "spent_usd": result.spent_usd,
+                    }
+                )
+            )
+            typer.echo(f"  [{row['seq']}] {action.kind} -> {result.verdict}  ({result.reason})")
 
     typer.echo(
         f"\nSpent ${g.spent_usd:.6f}"
@@ -191,6 +210,42 @@ def guard(
     if blocked:
         typer.echo(f"{blocked} action(s) blocked by the guard.")
         raise typer.Exit(code=2)
+
+
+@app.command()
+def verify(
+    db: Path = typer.Option(None, "--db", help="Path to the Preflight DB."),
+) -> None:
+    """Verify the audit log's hash chain. Exits non-zero if tampering is detected."""
+    store, _ = _open_store(db)
+    with store:
+        result = verify_chain(store.all_records())
+
+    if result.ok:
+        typer.echo(f"OK — audit chain intact ({result.count} record(s)).")
+        return
+    typer.echo(f"TAMPERING DETECTED — first bad record: seq {result.first_bad_seq}")
+    for p in result.problems:
+        typer.echo(f"  - {p}")
+    raise typer.Exit(code=1)
+
+
+@app.command()
+def export(
+    out: Path = typer.Option(..., "--out", help="Directory to write the export into."),
+    fmt: str = typer.Option("json", "--format", help="Export format: json | md | html."),
+    db: Path = typer.Option(None, "--db", help="Path to the Preflight DB."),
+) -> None:
+    """Export the audit trail to JSON/Markdown/HTML (path-confined to the workdir)."""
+    store, _ = _open_store(db)
+    with store:
+        records = store.all_records()
+    try:
+        path = write_export(records, fmt, out)
+    except ValueError as exc:
+        typer.echo(str(exc))
+        raise typer.Exit(code=1) from exc
+    typer.echo(f"Exported {len(records)} record(s) to {path}")
 
 
 def _demo_scenarios() -> list[tuple[str, object]]:
