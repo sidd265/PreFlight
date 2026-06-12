@@ -4,6 +4,18 @@ All notable changes to Preflight are documented here.
 
 ## [Unreleased]
 
+### Phase 4 — Guarding (spend limits, policy)
+- Spend guard (`guard.py`): per-run **budget** checked BEFORE each action; a breach
+  trips a latching **kill switch** so every later action is blocked.
+- Declarative **policy-as-code**: `GuardPolicy`/`PolicyRule` are pure Pydantic data,
+  loaded from `preflight.yaml` with `yaml.safe_load` — no `eval`/`exec`/`pickle` (S7).
+  First matching rule wins (allow / block / needs_approval).
+- Guards **fail CLOSED** (S3): any error in budget or policy evaluation — including a
+  corrupt cost or a broken rule — yields `block`, never `allow`.
+- `preflight guard --policy preflight.yaml`: replays a recorded run through the guard,
+  prints each verdict, totals spend vs budget, exits non-zero if anything was blocked.
+- Sample policy at `examples/preflight.yaml`; `pyyaml` added (declarative config only).
+
 ### Phase 3 — Checking (judge, approval, dry-run)
 - LLM judge (`judge.py`): provider-agnostic `JudgeClient`, BYO key, small-model
   default. Context scrubbed before sending; recorded content wrapped as untrusted

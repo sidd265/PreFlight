@@ -1,0 +1,25 @@
+# Preflight declarative policy-as-code (Phase 4).
+# Pure data — loaded with yaml.safe_load, validated by Pydantic. No code is executed.
+
+# Per-run cumulative spend cap (USD). Breaching it trips the kill switch:
+# every subsequent action is blocked.
+budget_usd: 5.00
+
+# Verdict when no rule below matches.
+default_effect: allow
+
+# Ordered rules; the first match decides. A rule matches when every condition holds.
+rules:
+  - name: block-large-payments
+    kind: payment
+    max_amount: 10000      # payments >= $10,000 are blocked outright
+    effect: block
+
+  - name: review-mid-payments
+    kind: payment
+    max_amount: 1000       # payments >= $1,000 (and < $10,000) need a human
+    effect: needs_approval
+
+  - name: review-irreversible-high-risk
+    risk: high
+    effect: needs_approval

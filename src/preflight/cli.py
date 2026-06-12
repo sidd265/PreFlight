@@ -11,10 +11,12 @@ from preflight import __version__
 from preflight.decision import DecisionPolicy
 from preflight.diff import diff_decisions
 from preflight.golden import save_golden
+from preflight.guard import Guard, load_policy
 from preflight.paths import default_db_path
 from preflight.regression import find_regressions
 from preflight.replay import load_replay_decisions, replay
 from preflight.report import build_report, render_html, render_text
+from preflight.schema import Action
 from preflight.store import Store
 
 app = typer.Typer(
@@ -147,6 +149,47 @@ def diff_cmd(
         typer.echo("\nDANGER — regressions detected:")
         for r in regressions:
             typer.echo(f"  [{r.seq}] {r.kind} (risk={r.risk}): {r.reason}")
+        raise typer.Exit(code=2)
+
+
+@app.command()
+def guard(
+    policy_path: Path = typer.Option(
+        ..., "--policy", help="Path to a declarative policy YAML (preflight.yaml)."
+    ),
+    db: Path = typer.Option(None, "--db", help="Path to the Preflight DB."),
+    run: str = typer.Option(None, "--run", help="Run id to guard (default: latest)."),
+) -> None:
+    """Replay a recorded run through the spend guard + policy, before-execution.
+
+    Enforces the budget (kill switch on breach) and the declarative policy rules.
+    Exits non-zero if any action is blocked. Guards fail CLOSED.
+    """
+    policy = load_policy(policy_path)
+    store, _ = _open_store(db)
+    with store:
+        run_row = store.get_run(run) if run else store.latest_run()
+        if run_row is None:
+            typer.echo("No runs recorded yet.")
+            raise typer.Exit(code=1)
+        rows = store.actions_for_run(run_row["run_id"])
+
+    g = Guard(policy)
+    blocked = 0
+    for row in rows:
+        action = Action.model_validate_json(row["action_json"])
+        result = g.check(action, cost_usd=float(row["cost_usd"]))
+        if result.verdict == "block":
+            blocked += 1
+        typer.echo(f"  [{row['seq']}] {action.kind} -> {result.verdict}  ({result.reason})")
+
+    typer.echo(
+        f"\nSpent ${g.spent_usd:.6f}"
+        + (f" / budget ${policy.budget_usd:.2f}" if policy.budget_usd is not None else "")
+        + (" — KILL SWITCH TRIPPED" if g.tripped else "")
+    )
+    if blocked:
+        typer.echo(f"{blocked} action(s) blocked by the guard.")
         raise typer.Exit(code=2)
 
 
